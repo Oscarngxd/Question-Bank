@@ -3,25 +3,54 @@ import { Card, CardContent, Box, Chip, IconButton, Typography, Tooltip, Dialog, 
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
+import LocalOfferIcon from '@mui/icons-material/LocalOffer';
 import { InlineMath, BlockMath } from 'react-katex';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import 'katex/dist/katex.min.css';
 import { QUESTION_TYPES, API_BASE_URL } from '../config';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import './editor.css';
 
-function renderWithMath(content) {
-  // Split by $$ for block math, $ for inline math
-  const parts = content.split(/(\$\$.*?\$\$|\$.*?\$)/g);
-  return parts.map((part, idx) => {
-    if (part.startsWith('$$') && part.endsWith('$$')) {
-      return <BlockMath key={idx} math={part.slice(2, -2)} />;
-    } else if (part.startsWith('$') && part.endsWith('$')) {
-      return <InlineMath key={idx} math={part.slice(1, -1)} />;
-    } else {
-      return <Typography key={idx} component="span">{part}</Typography>;
+function renderWithMath(html) {
+  // Split by block ($$...$$) and inline ($...$) math
+  const blockRegex = /\$\$(.+?)\$\$/gs;
+  const inlineRegex = /\$(.+?)\$/g;
+  let elements = [];
+  let lastIndex = 0;
+  let match;
+  let key = 0;
+  // First, handle block math
+  html = html.replace(/\r?\n/g, '<br/>');
+  while ((match = blockRegex.exec(html)) !== null) {
+    if (match.index > lastIndex) {
+      elements.push(
+        <span key={key++} dangerouslySetInnerHTML={{ __html: html.slice(lastIndex, match.index) }} />
+      );
     }
-  });
+    elements.push(<BlockMath key={key++}>{match[1]}</BlockMath>);
+    lastIndex = blockRegex.lastIndex;
+  }
+  if (lastIndex < html.length) {
+    html = html.slice(lastIndex);
+    // Now handle inline math in the remaining html
+    let lastInline = 0;
+    while ((match = inlineRegex.exec(html)) !== null) {
+      if (match.index > lastInline) {
+        elements.push(
+          <span key={key++} dangerouslySetInnerHTML={{ __html: html.slice(lastInline, match.index) }} />
+        );
+      }
+      elements.push(<InlineMath key={key++}>{match[1]}</InlineMath>);
+      lastInline = inlineRegex.lastIndex;
+    }
+    if (lastInline < html.length) {
+      elements.push(
+        <span key={key++} dangerouslySetInnerHTML={{ __html: html.slice(lastInline) }} />
+      );
+    }
+  }
+  return elements;
 }
 
 const QuestionCard = ({ question, selected, onSelect, onEdit, onDelete }) => {
@@ -90,6 +119,39 @@ const QuestionCard = ({ question, selected, onSelect, onEdit, onDelete }) => {
     }
   };
 
+  const renderImages = (position) => {
+    if (!question.images || question.images.length === 0) return null;
+    
+    // Filter images based on position
+    const positionImages = question.images.filter(img => img.position === position);
+    
+    if (positionImages.length === 0) return null;
+    
+    return (
+      <Box sx={{ my: 2 }}>
+        {positionImages.map((image, index) => (
+          <Box key={index} sx={{ my: 1, textAlign: 'center' }}>
+            <img 
+              src={image.url} 
+              alt={image.caption || `Question illustration ${index + 1}`}
+              style={{ 
+                maxWidth: '100%', 
+                maxHeight: '300px',
+                objectFit: 'contain',
+                borderRadius: 4
+              }}
+            />
+            {image.caption && (
+              <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
+                {image.caption}
+              </Typography>
+            )}
+          </Box>
+        ))}
+      </Box>
+    );
+  };
+
   const renderOptions = () => {
     // Only show options for MC questions
     if (question.type !== 'MC' || !question.options) return null;
@@ -130,9 +192,9 @@ const QuestionCard = ({ question, selected, onSelect, onEdit, onDelete }) => {
         </AccordionSummary>
         <AccordionDetails>
           <Box>
-            {question.markingScheme.split('\n').map((line, idx) => (
-              <div key={idx}>{renderContent(line)}</div>
-            ))}
+            <div className="ck-content">
+              {renderWithMath(question.markingScheme || '')}
+            </div>
           </Box>
         </AccordionDetails>
       </Accordion>
@@ -161,34 +223,55 @@ const QuestionCard = ({ question, selected, onSelect, onEdit, onDelete }) => {
               sx={{ mr: 1 }}
             />
             <Box sx={{ flex: 1 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', mb: 1, gap: 1 }}>
-                <Chip
-                  label={question.type === 'MC' ? 'Multiple Choice' : 'Conventional'}
-                  size="small"
-                  color={question.type === 'MC' ? 'primary' : 'secondary'}
-                  sx={{ borderRadius: 2, fontWeight: 500 }}
-                />
-                <Chip
-                  label={question.source}
-                  size="small"
-                  color="info"
-                  sx={{ borderRadius: 2, fontWeight: 500 }}
-                />
-                <Chip
-                  label={question.topic}
-                  size="small"
-                  color="success"
-                  sx={{ borderRadius: 2, fontWeight: 500 }}
-                />
-              </Box>
-              <Typography variant="body1" component="div" sx={{ mb: 2 }}>
-                {renderContent(question.content)}
-              </Typography>
-              {renderOptions()}
-              {renderAnswer()}
-              {renderMarkingScheme()}
+              
+              {/* Display tags only - removed the original colored chips */}
+              {question.tags && question.tags.length > 0 && (
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mb: 1.5 }}>
+                  {question.tags.map((tag, index) => {
+                    // Don't repeat the source, type, and topic as standalone tags
+                    if (tag === question.source || 
+                        tag === question.topic || 
+                        tag === (question.type === 'MC' ? 'Multiple Choice' : 'Conventional')) {
+                      return null;
+                    }
+                    
+                    return (
+                      <Chip
+                        key={index}
+                        icon={<LocalOfferIcon fontSize="small" />}
+                        label={tag}
+                        size="small"
+                        variant="outlined"
+                        sx={{ 
+                          borderRadius: 2, 
+                          fontSize: '0.7rem',
+                          bgcolor: theme.palette.grey[50],
+                          color: theme.palette.text.secondary
+                        }}
+                      />
+                    );
+                  })}
+                </Box>
+              )}
             </Box>
           </Box>
+          
+          {/* Question Content - Using dangerouslySetInnerHTML to properly render HTML content with images */}
+          {/* <div dangerouslySetInnerHTML={{ __html: question.content || '' }} /> */}
+          
+          {/* Switch back to the renderWithMath function to properly handle both HTML and LaTeX */}
+          <Typography variant="body1" component="div" sx={{ mb: 2 }}>
+            <div className="ck-content">
+              {renderWithMath(question.content || '')}
+            </div>
+          </Typography>
+          
+          {/* Render options for MC questions */}
+          {renderOptions()}
+          
+          {renderAnswer()}
+          
+          {renderMarkingScheme()}
         </CardContent>
         <CardActions sx={{ justifyContent: 'flex-end', p: 1 }}>
           <Tooltip title="Copy">

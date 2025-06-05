@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Box,
   Paper,
@@ -27,10 +27,10 @@ import {
 } from '@mui/material';
 import {
   Add as AddIcon,
-  FilterList as FilterListIcon,
   Clear as ClearIcon,
   Download as DownloadIcon,
   Upload as UploadIcon,
+  ArrowBack as ArrowBackIcon,
 } from '@mui/icons-material';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
@@ -42,28 +42,38 @@ import {
   API_BASE_URL
 } from '../config';
 
-const SOURCES = ['HKDSE', 'HKCEE', 'HKALE', 'School Exam', 'School Mock', 'Textbook'];
-const DSE_TOPICS = [
-  'Quadratic Equations', 'Functions and Graphs', 'Equations of Straight Lines',
-  'Polynomials', 'Inequalities', 'Exponential and Logarithmic Functions',
-  'Trigonometry', 'Permutations and Combinations', 'Binomial Theorem',
-  'Sequences', 'Vectors', 'Coordinate Geometry', 'Circles',
-  'Statistics', 'Probability', 'Mensuration', 'Transformation',
-  'Locus', 'Linear Programming', 'Matrices', 'Complex Numbers',
-  'Calculus', 'Limits', 'Differentiation', 'Integration',
-  'Applications of Calculus', 'Data Handling', 'Others'
-];
+// Remove hardcoded constants and replace with dynamic state
+// const SOURCES = ['HKDSE', 'HKCEE', 'HKALE', 'School Exam', 'School Mock', 'Textbook'];
+// const DSE_TOPICS = [
+//   'Quadratic Equations', 'Functions and Graphs', 'Equations of Straight Lines',
+//   'Polynomials', 'Inequalities', 'Exponential and Logarithmic Functions',
+//   'Trigonometry', 'Permutations and Combinations', 'Binomial Theorem',
+//   'Sequences', 'Vectors', 'Coordinate Geometry', 'Circles',
+//   'Statistics', 'Probability', 'Mensuration', 'Transformation',
+//   'Locus', 'Linear Programming', 'Matrices', 'Complex Numbers',
+//   'Calculus', 'Limits', 'Differentiation', 'Integration',
+//   'Applications of Calculus', 'Data Handling', 'Others'
+// ];
 
-const QuestionList = () => {
+// Sample data for years, schools, and textbooks - these should come from the database in a real implementation
+// const YEARS = ['2012', '2013', '2014', '2015', '2016', '2017', '2018', '2019', '2020', '2021', '2022', '2023'];
+// const SCHOOLS = ['School A', 'School B', 'School C', 'School D', 'School E'];
+// const TEXTBOOKS = ['Textbook A', 'Textbook B', 'Textbook C', 'Mathematics Extended Part Module 1', 'Mathematics Extended Part Module 2'];
+
+const QuestionList = ({ module }) => {
   const navigate = useNavigate();
   const theme = useTheme();
   const [filters, setFilters] = useState({
     type: '',
     source: '',
     topic: '',
-    search: ''
+    search: '',
+    module: module || '',
+    year: '',        // Added for year filter
+    school: '',      // Added for school filter
+    textbook: ''     // Added for textbook filter
   });
-  const [showFilters, setShowFilters] = useState(false);
+  const [searchText, setSearchText] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedQuestions, setSelectedQuestions] = useState([]);
@@ -71,10 +81,67 @@ const QuestionList = () => {
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
   const [uploadDialog, setUploadDialog] = useState(false);
   const fileInputRef = React.useRef();
+  
+  // Add state for filter options
+  const [filterOptions, setFilterOptions] = useState({
+    sources: [],
+    types: [],
+    topics: [],
+    years: [],
+    schools: [],
+    textbooks: []
+  });
+
+  useEffect(() => {
+    // Fetch filter options when component mounts
+    fetchFilterOptions();
+  }, []);
 
   useEffect(() => {
     fetchQuestions();
-  }, [filters]);
+  }, [filters, module]);
+
+  useEffect(() => {
+    if (module) {
+      setFilters(prev => ({
+        ...prev,
+        module: module
+      }));
+    }
+  }, [module]);
+
+  // Add debounce for search input
+  const debouncedSearch = useCallback(
+    (text) => {
+      if (text === '' || text.length >= 2) {
+        setFilters(prev => ({ ...prev, search: text }));
+      }
+    },
+    []
+  );
+
+  // Handle search text change with debounce
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      debouncedSearch(searchText);
+    }, 500);
+    return () => clearTimeout(timeoutId);
+  }, [searchText, debouncedSearch]);
+
+  // Fetch filter options from the server
+  const fetchFilterOptions = async () => {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/questions/filter-options`);
+      setFilterOptions(response.data);
+    } catch (err) {
+      console.error('Error fetching filter options:', err);
+      setSnackbar({
+        open: true,
+        message: 'Failed to load filter options',
+        severity: 'error'
+      });
+    }
+  };
 
   const fetchQuestions = async () => {
     try {
@@ -102,7 +169,11 @@ const QuestionList = () => {
       type: '',
       source: '',
       topic: '',
-      search: ''
+      search: '',
+      module: module || '',
+      year: '',
+      school: '',
+      textbook: ''
     });
   };
 
@@ -228,12 +299,28 @@ const QuestionList = () => {
     }
   };
 
+  // Helper function to determine which additional filter fields to show
+  const getSourceType = () => {
+    if (['HKDSE', 'HKCEE', 'HKALE'].includes(filters.source)) {
+      return 'exam';
+    } else if (['School Exam', 'School Mock'].includes(filters.source)) {
+      return 'school';
+    } else if (filters.source === 'Textbook') {
+      return 'textbook';
+    }
+    return '';
+  };
+
+  // Update the filteredQuestions to include the new filter fields
   const filteredQuestions = questions.filter((question) => {
     return (
       (!filters.type || question.type === filters.type) &&
       (!filters.source || question.source === filters.source) &&
       (!filters.topic || question.topic === filters.topic) &&
-      (!filters.search || question.content.includes(filters.search))
+      (!filters.search || question.content.includes(filters.search)) &&
+      (!filters.year || question.year === filters.year) &&
+      (!filters.school || question.school === filters.school) &&
+      (!filters.textbook || question.textbook === filters.textbook)
     );
   });
 
@@ -307,6 +394,19 @@ const QuestionList = () => {
     }
   };
 
+  const getModuleTitle = () => {
+    switch(module) {
+      case 'compulsory':
+        return 'Compulsory Part';
+      case 'module1':
+        return 'Module 1 (Calculus & Statistics)';
+      case 'module2':
+        return 'Module 2 (Algebra & Calculus)';
+      default:
+        return 'All Questions';
+    }
+  };
+
   if (loading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
@@ -316,28 +416,36 @@ const QuestionList = () => {
   }
 
   return (
-    <Container maxWidth="lg">
+    <Container maxWidth="xl">
       <Box sx={{ py: 4 }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-          <Typography variant="h4" component="h1" color="text.primary">
-            Question Bank
+          <Typography variant="h5" component="h1">
+            {getModuleTitle()}
           </Typography>
           <Box sx={{ display: 'flex', gap: 2 }}>
-            <Button
-              variant="outlined"
-              color="primary"
-              startIcon={<UploadIcon />}
-              onClick={() => navigate('/upload-questions')}
-            >
-              Upload Questions
-            </Button>
+            {module && (
+              <Button 
+                startIcon={<ArrowBackIcon />} 
+                onClick={() => navigate('/')}
+                variant="outlined"
+                size="small"
+              >
+                Back to Modules
+              </Button>
+            )}
             <Button
               variant="contained"
-              color="primary"
               startIcon={<AddIcon />}
               onClick={() => navigate('/add-question')}
             >
               Add Question
+            </Button>
+            <Button
+              variant="outlined"
+              startIcon={<UploadIcon />}
+              onClick={() => navigate('/upload')}
+            >
+              Upload Questions
             </Button>
           </Box>
         </Box>
@@ -356,16 +464,11 @@ const QuestionList = () => {
             bgcolor: theme.palette.mode === 'dark' ? 'background.paper' : 'background.paper',
           }}
         >
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          <Box sx={{ mb: 3 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
               <Typography variant="h6">
                 Questions ({filteredQuestions.length})
               </Typography>
-              <Tooltip title={showFilters ? "Hide Filters" : "Show Filters"}>
-                <IconButton onClick={() => setShowFilters(!showFilters)}>
-                  <FilterListIcon />
-                </IconButton>
-              </Tooltip>
               {Object.values(filters).some(Boolean) && (
                 <Tooltip title="Clear Filters">
                   <IconButton onClick={clearFilters} color="error">
@@ -373,86 +476,194 @@ const QuestionList = () => {
                   </IconButton>
                 </Tooltip>
               )}
-            </Box>
-            {selectedQuestions.length > 0 && (
-              <>
-              <Button
-                variant="contained"
-                color="primary"
-                startIcon={<DownloadIcon />}
-                onClick={handleExport}
-                  sx={{ mr: 1 }}
-              >
-                Export ({selectedQuestions.length})
-              </Button>
+              {selectedQuestions.length > 0 && (
+                <>
                 <Button
                   variant="contained"
-                  color="secondary"
+                  color="primary"
                   startIcon={<DownloadIcon />}
-                  onClick={handleExportWord}
+                  onClick={handleExport}
+                  sx={{ mr: 1 }}
                 >
-                  Export as Word
+                  Export ({selectedQuestions.length})
                 </Button>
-              </>
-            )}
-          </Box>
-
-          {showFilters && (
-            <Box sx={{ mb: 3 }}>
-              <Grid container spacing={2}>
-                <Grid item xs={12} sm={6} md={3}>
-                  <TextField
-                    select
-                    fullWidth
-                    label="Type"
-                    value={filters.type}
-                    onChange={e => setFilters(prev => ({ ...prev, type: e.target.value }))}
+                  <Button
+                    variant="contained"
+                    color="secondary"
+                    startIcon={<DownloadIcon />}
+                    onClick={handleExportWord}
                   >
-                    <MenuItem value="">All</MenuItem>
-                    {['MC', 'Conventional'].map(type => (
-                      <MenuItem key={type} value={type}>{type === 'MC' ? 'Multiple Choice' : 'Conventional'}</MenuItem>
-                    ))}
-                  </TextField>
-              </Grid>
-                <Grid item xs={12} sm={6} md={3}>
-                  <TextField
-                    select
-                    fullWidth
-                    label="Source"
-                    value={filters.source}
-                    onChange={e => setFilters(prev => ({ ...prev, source: e.target.value }))}
-                  >
-                    <MenuItem value="">All</MenuItem>
-                    {SOURCES.map(source => (
-                      <MenuItem key={source} value={source}>{source}</MenuItem>
-                    ))}
-                  </TextField>
-              </Grid>
-                <Grid item xs={12} sm={6} md={3}>
-                  <TextField
-                    select
-                    fullWidth
-                    label="Topic"
-                    value={filters.topic}
-                    onChange={e => setFilters(prev => ({ ...prev, topic: e.target.value }))}
-                  >
-                    <MenuItem value="">All</MenuItem>
-                    {DSE_TOPICS.map(topic => (
-                      <MenuItem key={topic} value={topic}>{topic}</MenuItem>
-                    ))}
-                  </TextField>
-                </Grid>
-                <Grid item xs={12} sm={6} md={3}>
-                  <TextField
-                    fullWidth
-                    label="Search"
-                    value={filters.search}
-                    onChange={e => setFilters(prev => ({ ...prev, search: e.target.value }))}
-                  />
-                </Grid>
-              </Grid>
+                    Export as Word
+                  </Button>
+                </>
+              )}
             </Box>
-          )}
+            <Grid container spacing={2}>
+              <Grid item xs={12} sm={6} md={3}>
+                <TextField
+                  select
+                  fullWidth
+                  label="Source"
+                  value={filters.source}
+                  onChange={e => setFilters(prev => ({ 
+                    ...prev, 
+                    source: e.target.value,
+                    // Reset dependent fields when source changes
+                    year: '', 
+                    school: '', 
+                    textbook: '' 
+                  }))}
+                  sx={{ mb: 2 }}
+                >
+                  <MenuItem value="">All</MenuItem>
+                  {filterOptions.sources.map(source => (
+                    <MenuItem key={source} value={source}>{source}</MenuItem>
+                  ))}
+                </TextField>
+                
+                {/* Dynamic additional fields based on source selection - placed directly under source */}
+                {getSourceType() === 'exam' && (
+                  <TextField
+                    select
+                    size="small"
+                    label="Year"
+                    value={filters.year}
+                    onChange={e => setFilters(prev => ({ ...prev, year: e.target.value }))}
+                    sx={{ 
+                      ml: 2, 
+                      width: 'calc(100% - 16px)',
+                      '& .MuiInputLabel-root': {
+                        fontSize: '0.85rem',
+                      },
+                      '& .MuiSelect-select': {
+                        fontSize: '0.9rem',
+                      }
+                    }}
+                  >
+                    <MenuItem value="">All Years</MenuItem>
+                    {filterOptions.years.map(year => (
+                      <MenuItem key={year} value={year}>{year}</MenuItem>
+                    ))}
+                  </TextField>
+                )}
+                
+                {getSourceType() === 'school' && (
+                  <>
+                    <TextField
+                      select
+                      size="small"
+                      label="School"
+                      value={filters.school}
+                      onChange={e => setFilters(prev => ({ ...prev, school: e.target.value }))}
+                      sx={{ 
+                        ml: 2, 
+                        width: 'calc(100% - 16px)',
+                        mb: 2,
+                        '& .MuiInputLabel-root': {
+                          fontSize: '0.85rem',
+                        },
+                        '& .MuiSelect-select': {
+                          fontSize: '0.9rem',
+                        }
+                      }}
+                    >
+                      <MenuItem value="">All Schools</MenuItem>
+                      {filterOptions.schools.map(school => (
+                        <MenuItem key={school} value={school}>{school}</MenuItem>
+                      ))}
+                    </TextField>
+                    <TextField
+                      select
+                      size="small"
+                      label="Year"
+                      value={filters.year}
+                      onChange={e => setFilters(prev => ({ ...prev, year: e.target.value }))}
+                      sx={{ 
+                        ml: 2, 
+                        width: 'calc(100% - 16px)',
+                        '& .MuiInputLabel-root': {
+                          fontSize: '0.85rem',
+                        },
+                        '& .MuiSelect-select': {
+                          fontSize: '0.9rem',
+                        }
+                      }}
+                    >
+                      <MenuItem value="">All Years</MenuItem>
+                      {filterOptions.years.map(year => (
+                        <MenuItem key={year} value={year}>{year}</MenuItem>
+                      ))}
+                    </TextField>
+                  </>
+                )}
+                
+                {getSourceType() === 'textbook' && (
+                  <TextField
+                    select
+                    size="small"
+                    label="Textbook"
+                    value={filters.textbook}
+                    onChange={e => setFilters(prev => ({ ...prev, textbook: e.target.value }))}
+                    sx={{ 
+                      ml: 2, 
+                      width: 'calc(100% - 16px)',
+                      '& .MuiInputLabel-root': {
+                        fontSize: '0.85rem',
+                      },
+                      '& .MuiSelect-select': {
+                        fontSize: '0.9rem',
+                      }
+                    }}
+                  >
+                    <MenuItem value="">All Textbooks</MenuItem>
+                    {filterOptions.textbooks.map(book => (
+                      <MenuItem key={book} value={book}>{book}</MenuItem>
+                    ))}
+                  </TextField>
+                )}
+              </Grid>
+              
+              <Grid item xs={12} sm={6} md={3}>
+                <TextField
+                  select
+                  fullWidth
+                  label="Type"
+                  value={filters.type}
+                  onChange={e => setFilters(prev => ({ ...prev, type: e.target.value }))}
+                >
+                  <MenuItem value="">All</MenuItem>
+                  {filterOptions.types.map(type => (
+                    <MenuItem key={type} value={type}>{type === 'MC' ? 'Multiple Choice' : 'Conventional'}</MenuItem>
+                  ))}
+                </TextField>
+              </Grid>
+              
+              <Grid item xs={12} sm={6} md={3}>
+                <TextField
+                  select
+                  fullWidth
+                  label="Topic"
+                  value={filters.topic}
+                  onChange={e => setFilters(prev => ({ ...prev, topic: e.target.value }))}
+                >
+                  <MenuItem value="">All</MenuItem>
+                  {filterOptions.topics.map(topic => (
+                    <MenuItem key={topic} value={topic}>{topic}</MenuItem>
+                  ))}
+                </TextField>
+              </Grid>
+              
+              <Grid item xs={12} sm={6} md={3}>
+                <TextField
+                  fullWidth
+                  label="Search"
+                  value={searchText}
+                  onChange={e => setSearchText(e.target.value)}
+                  helperText="Search will begin after 2 characters"
+                />
+              </Grid>
+            </Grid>
+          </Box>
 
           {filteredQuestions.length > 0 && (
             <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>

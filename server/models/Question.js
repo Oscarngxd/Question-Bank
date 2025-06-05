@@ -6,11 +6,29 @@ const questionSchema = new mongoose.Schema({
     required: [true, 'Question content is required'],
     trim: true
   },
+  module: {
+    type: String,
+    required: [true, 'Module is required'],
+    enum: ['compulsory', 'module1', 'module2'],
+    default: 'compulsory'
+  },
   source: {
     type: String,
     required: [true, 'Question source is required'],
     enum: ['HKDSE', 'HKCEE', 'HKALE', 'School Exam', 'School Mock', 'Textbook'],
     default: 'HKDSE'
+  },
+  year: {
+    type: String,
+    trim: true
+  },
+  school: {
+    type: String,
+    trim: true
+  },
+  textbook: {
+    type: String,
+    trim: true
   },
   type: { 
     type: String, 
@@ -21,16 +39,6 @@ const questionSchema = new mongoose.Schema({
   topic: { 
     type: String, 
     required: [true, 'Question topic is required'],
-    enum: [
-      'Quadratic Equations', 'Functions and Graphs', 'Equations of Straight Lines',
-      'Polynomials', 'Inequalities', 'Exponential and Logarithmic Functions',
-      'Trigonometry', 'Permutations and Combinations', 'Binomial Theorem',
-      'Sequences', 'Vectors', 'Coordinate Geometry', 'Circles',
-      'Statistics', 'Probability', 'Mensuration', 'Transformation',
-      'Locus', 'Linear Programming', 'Matrices', 'Complex Numbers',
-      'Calculus', 'Limits', 'Differentiation', 'Integration',
-      'Applications of Calculus', 'Data Handling', 'Others'
-    ],
     trim: true
   },
   options: [{
@@ -81,9 +89,49 @@ const questionSchema = new mongoose.Schema({
 });
 
 // Add indexes for better query performance
-questionSchema.index({ type: 1, source: 1, topic: 1 });
+questionSchema.index({ type: 1, source: 1, topic: 1, module: 1 });
 questionSchema.index({ tags: 1 });
 questionSchema.index({ content: 'text' }); // For text search
+
+// Generate formatted tags based on question metadata
+questionSchema.pre('save', function(next) {
+  // Create formatted tags like "HKCEE - 2017" or "School Exam - School A - 2012"
+  if (!this.tags) {
+    this.tags = [];
+  }
+  
+  // Generate source-based tag
+  if (this.source) {
+    let formattedTag = this.source;
+    
+    // For school exams, add the school name
+    if ((this.source === 'School Exam' || this.source === 'School Mock') && this.school) {
+      formattedTag += ' - ' + this.school;
+    }
+    
+    // For textbooks, add the textbook name
+    if (this.source === 'Textbook' && this.textbook) {
+      formattedTag += ' - ' + this.textbook;
+    }
+    
+    // Add year if available
+    if (this.year) {
+      formattedTag += ' - ' + this.year;
+    }
+    
+    // Add the formatted tag if it doesn't already exist
+    if (!this.tags.includes(formattedTag)) {
+      this.tags.push(formattedTag);
+    }
+    
+    // Also add the topic as a tag if not already included
+    if (this.topic && !this.tags.includes(this.topic)) {
+      this.tags.push(this.topic);
+    }
+  }
+  
+  next();
+});
 
 // Add validation for MC questions
 questionSchema.pre('save', function(next) {

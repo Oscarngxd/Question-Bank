@@ -5,6 +5,8 @@ const mammoth = require('mammoth');
 const Question = require('../models/Question');
 const { Document, Paragraph, TextRun, HeadingLevel, AlignmentType, TabStopPosition, TabStopType } = require('docx');
 const docx = require('docx');
+const fs = require('fs');
+const path = require('path');
 
 // Configure multer for file upload
 const storage = multer.memoryStorage();
@@ -17,6 +19,42 @@ const upload = multer({
     } else {
       cb(new Error('Only .doc and .docx files are allowed'));
     }
+  }
+});
+
+// Configure multer for image uploads
+const imageStorage = multer.diskStorage({
+  destination: function(req, file, cb) {
+    const uploadDir = path.join(__dirname, '..', 'public', 'uploads');
+    // Ensure directory exists
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+    cb(null, uploadDir);
+  },
+  filename: function(req, file, cb) {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    const ext = path.extname(file.originalname);
+    cb(null, 'question-image-' + uniqueSuffix + ext);
+  }
+});
+
+const imageUpload = multer({
+  storage: imageStorage,
+  fileFilter: (req, file, cb) => {
+    if (
+      file.mimetype === 'image/png' ||
+      file.mimetype === 'image/jpg' ||
+      file.mimetype === 'image/jpeg' ||
+      file.mimetype === 'image/gif'
+    ) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only .png, .jpg, .jpeg and .gif files are allowed'));
+    }
+  },
+  limits: {
+    fileSize: 5 * 1024 * 1024, // 5MB limit
   }
 });
 
@@ -66,7 +104,7 @@ router.get('/stats/summary', async (req, res) => {
     // Process level statistics
     stats[0]?.byLevel.forEach(item => {
       summary.byLevel[item.level] = (summary.byLevel[item.level] || 0) + item.count;
-    });
+    });image.png
 
     // Process topic statistics
     stats[0]?.byTopic.forEach(item => {
@@ -82,15 +120,48 @@ router.get('/stats/summary', async (req, res) => {
 
 router.get('/template', async (req, res) => {
   try {
+    // Get module from query parameters
+    const { module } = req.query;
+    let templateTitle = "Math Question Bank Template";
+    let exampleTopics = [];
+    
+    // Customize template based on selected module
+    if (module) {
+      switch(module) {
+        case 'compulsory':
+          templateTitle = "Math Question Bank Template - Compulsory Part";
+          exampleTopics = ['Algebra', 'Geometry', 'Trigonometry', 'Functions', 'Coordinate Geometry'];
+          break;
+        case 'module1':
+          templateTitle = "Math Question Bank Template - Module 1 (Calculus & Statistics)";
+          exampleTopics = ['Calculus', 'Statistics', 'Probability', 'Differentiation', 'Integration'];
+          break;
+        case 'module2':
+          templateTitle = "Math Question Bank Template - Module 2 (Algebra & Calculus)";
+          exampleTopics = ['Advanced Algebra', 'Calculus Methods', 'Mathematical Induction', 'Complex Numbers', 'Vectors'];
+          break;
+        default:
+          exampleTopics = ['Quadratic Equations', 'Trigonometry', 'Calculus'];
+      }
+    }
+    
     const doc = new Document({
       sections: [{
         properties: {},
         children: [
           new Paragraph({
-            text: "Math Question Bank Template",
+            text: templateTitle,
             heading: HeadingLevel.HEADING_1,
             spacing: { after: 200 }
           }),
+          
+          // Add module information
+          module ? new Paragraph({
+            text: `Module: ${module}`,
+            heading: HeadingLevel.HEADING_2,
+            spacing: { after: 100 }
+          }) : null,
+          
           new Paragraph({
             text: "Instructions:",
             heading: HeadingLevel.HEADING_2,
@@ -109,23 +180,39 @@ router.get('/template', async (req, res) => {
             spacing: { after: 100 }
           }),
           new Paragraph({
-            text: "4. Specify Topic (e.g., Quadratic Equations, Trigonometry, etc.) after the Source",
+            text: "4. After Source, include additional information based on the source type:",
+            spacing: { after: 0 }
+          }),
+          new Paragraph({
+            text: "   - For HKDSE, HKCEE, HKALE: Add Year (e.g., Year: 2022)",
+            spacing: { after: 0 }
+          }),
+          new Paragraph({
+            text: "   - For School Exam, School Mock: Add School (e.g., School: School A) and Year (e.g., Year: 2022)",
+            spacing: { after: 0 }
+          }),
+          new Paragraph({
+            text: "   - For Textbook: Add Textbook name (e.g., Textbook: Mathematics Extended Part Module 1)",
             spacing: { after: 100 }
           }),
           new Paragraph({
-            text: "5. Specify Type (Conventional or MC) after the Topic",
+            text: "5. Specify Topic (e.g., Quadratic Equations, Trigonometry, etc.) after the Source details",
             spacing: { after: 100 }
           }),
           new Paragraph({
-            text: "6. For multiple choice questions, add options with (a), (b), (c), etc.",
+            text: "6. Specify Type (Conventional or MC) after the Topic",
             spacing: { after: 100 }
           }),
           new Paragraph({
-            text: "7. End with Correct Answer: [option letter or answer]",
+            text: "7. For multiple choice questions, add options with (a), (b), (c), etc.",
             spacing: { after: 100 }
           }),
           new Paragraph({
-            text: "8. Add a Marking Scheme section after the correct answer for each question.",
+            text: "8. End with Correct Answer: [option letter or answer]",
+            spacing: { after: 100 }
+          }),
+          new Paragraph({
+            text: "9. Add a Marking Scheme section after the correct answer for each question.",
             spacing: { after: 200 }
           }),
           new Paragraph({
@@ -144,6 +231,10 @@ router.get('/template', async (req, res) => {
           }),
           new Paragraph({
             text: "Source: HKDSE",
+            spacing: { after: 100 }
+          }),
+          new Paragraph({
+            text: "Year: 2022",
             spacing: { after: 100 }
           }),
           new Paragraph({
@@ -176,6 +267,10 @@ router.get('/template', async (req, res) => {
             spacing: { after: 100 }
           }),
           new Paragraph({
+            text: "Year: 2023",
+            spacing: { after: 100 }
+          }),
+          new Paragraph({
             text: "Topic: Calculus",
             spacing: { after: 100 }
           }),
@@ -201,7 +296,11 @@ router.get('/template', async (req, res) => {
             spacing: { after: 200 }
           }),
           new Paragraph({
-            text: "Source: School Exam",
+            text: "Source: HKCEE",
+            spacing: { after: 100 }
+          }),
+          new Paragraph({
+            text: "Year: 2007",
             spacing: { after: 100 }
           }),
           new Paragraph({
@@ -235,6 +334,76 @@ router.get('/template', async (req, res) => {
           new Paragraph({
             text: "Marking Scheme: 1. Use Pythagoras' theorem: $c^2 = a^2 + b^2$  2. $5^2 = 3^2 + b^2$  3. $b = 4$ units",
             spacing: { after: 400 }
+          }),
+          new Paragraph({
+            text: "Question 4",
+            heading: HeadingLevel.HEADING_3,
+            spacing: { after: 100 }
+          }),
+          new Paragraph({
+            text: "Solve the following system of equations:\n$3x + 2y = 12$\n$5x - 3y = 7$",
+            spacing: { after: 200 }
+          }),
+          new Paragraph({
+            text: "Source: School Exam",
+            spacing: { after: 100 }
+          }),
+          new Paragraph({
+            text: "School: School A",
+            spacing: { after: 100 }
+          }),
+          new Paragraph({
+            text: "Year: 2021",
+            spacing: { after: 100 }
+          }),
+          new Paragraph({
+            text: "Topic: Equations of Straight Lines",
+            spacing: { after: 100 }
+          }),
+          new Paragraph({
+            text: "Type: Conventional",
+            spacing: { after: 100 }
+          }),
+          new Paragraph({
+            text: "Correct Answer: $x = 3, y = 1.5$",
+            spacing: { after: 100 }
+          }),
+          new Paragraph({
+            text: "Marking Scheme: 1. Multiply the first equation by 3 to get $9x + 6y = 36$  2. Multiply the second equation by 2 to get $10x - 6y = 14$  3. Add the equations to get $19x = 50$  4. Solve for $x$ to get $x = 50/19 ≈ 2.63$  5. Substitute this value into the first equation to find $y$",
+            spacing: { after: 400 }
+          }),
+          new Paragraph({
+            text: "Question 5",
+            heading: HeadingLevel.HEADING_3,
+            spacing: { after: 100 }
+          }),
+          new Paragraph({
+            text: "Find the indefinite integral: $\\int x \\cdot \\sin(x) \\, dx$",
+            spacing: { after: 200 }
+          }),
+          new Paragraph({
+            text: "Source: Textbook",
+            spacing: { after: 100 }
+          }),
+          new Paragraph({
+            text: "Textbook: Mathematics Extended Part Module 1",
+            spacing: { after: 100 }
+          }),
+          new Paragraph({
+            text: "Topic: Integration",
+            spacing: { after: 100 }
+          }),
+          new Paragraph({
+            text: "Type: Conventional",
+            spacing: { after: 100 }
+          }),
+          new Paragraph({
+            text: "Correct Answer: $\\sin(x) - x \\cdot \\cos(x) + C$",
+            spacing: { after: 100 }
+          }),
+          new Paragraph({
+            text: "Marking Scheme: 1. Use integration by parts with $u = x$ and $dv = \\sin(x) \\, dx$  2. $u \\cdot v - \\int v \\, du$ with $v = -\\cos(x)$ and $du = dx$  3. $-x \\cdot \\cos(x) - \\int -\\cos(x) \\, dx$  4. $-x \\cdot \\cos(x) + \\int \\cos(x) \\, dx$  5. $-x \\cdot \\cos(x) + \\sin(x) + C$  6. Simplify to get $\\sin(x) - x \\cdot \\cos(x) + C$",
+            spacing: { after: 400 }
           })
         ],
       }],
@@ -260,52 +429,63 @@ router.get('/template', async (req, res) => {
 
 router.get('/filter', async (req, res) => {
   try {
-    const { 
-      page = 1, 
-      limit = 10, 
-      type, 
-      level, 
-      topic, 
-      search,
-      sortBy = 'createdAt',
-      sortOrder = 'desc'
-    } = req.query;
+    const { type, source, topic, search, module, year, school, textbook } = req.query;
+    let query = {};
 
-    const query = {};
-    
-    // Apply filters
     if (type) query.type = type;
-    if (level) query.level = level;
+    if (source) query.source = source;
     if (topic) query.topic = topic;
-    if (search) {
-      query.$text = { $search: search };
+    if (year) query.year = year;
+    if (school) query.school = school;
+    if (textbook) query.textbook = textbook;
+    
+    // Add module filtering - directly filter by module field
+    if (module) {
+      // Add the module field to the query directly
+      query.module = module;
+      
+      // We can keep topic suggestions by module as supplementary filters
+      // but the primary filter should be the module field
+      /* 
+      // These were the old topic-based filters which we've replaced
+      switch(module) {
+        case 'compulsory':
+          // For compulsory, filter to include basic topics
+          query.topic = { $in: [
+            'Algebra', 'Geometry', 'Trigonometry', 'Functions', 
+            'Coordinate Geometry', 'Quadratic Equations', 'Polynomials'
+          ]};
+          break;
+        case 'module1':
+          // For module1, filter to include calculus and statistics topics
+          query.topic = { $in: [
+            'Calculus', 'Statistics', 'Probability', 'Differentiation',
+            'Integration', 'Applications of Calculus', 'Data Handling'
+          ]};
+          break;
+        case 'module2':
+          // For module2, filter to include advanced algebra and calculus
+          query.topic = { $in: [
+            'Calculus', 'Advanced Algebra', 'Vectors', 'Complex Numbers',
+            'Matrices', 'Mathematical Induction', 'Limits'
+          ]};
+          break;
+      }
+      */
     }
 
-    // Calculate skip value for pagination
-    const skip = (page - 1) * limit;
+    if (search) {
+      query.$or = [
+        { content: { $regex: search, $options: 'i' } },
+        { markingScheme: { $regex: search, $options: 'i' } }
+      ];
+    }
 
-    // Build sort object
-    const sort = {};
-    sort[sortBy] = sortOrder === 'desc' ? -1 : 1;
-
-    // Execute query with pagination
-    const questions = await Question.find(query)
-      .sort(sort)
-      .skip(skip)
-      .limit(parseInt(limit));
-
-    // Get total count for pagination
-    const total = await Question.countDocuments(query);
-
-    res.json({
-      questions,
-      currentPage: page,
-      totalPages: Math.ceil(total / limit),
-      totalQuestions: total
-    });
+    const questions = await Question.find(query).sort({ createdAt: -1 });
+    res.json({ questions });
   } catch (error) {
-    console.error('Error fetching questions:', error);
-    res.status(500).json({ message: 'Error fetching questions', error: error.message });
+    console.error('Error filtering questions:', error);
+    res.status(500).json({ message: 'Error filtering questions', error: error.message });
   }
 });
 
@@ -322,12 +502,30 @@ router.post('/', async (req, res) => {
 
 router.post('/batch', async (req, res) => {
   try {
-    const { questions } = req.body;
+    const { questions, module } = req.body;
+    
+    if (!module) {
+      return res.status(400).json({ message: 'Module selection is required' });
+    }
+    
     if (!Array.isArray(questions)) {
       return res.status(400).json({ message: 'Invalid questions format' });
     }
 
-    const savedQuestions = await Question.insertMany(questions);
+    // Add module to each question if not already present
+    const questionsWithModule = questions.map(q => ({
+      ...q,
+      module: q.module || module
+    }));
+
+    // Use individual save() instead of insertMany() to trigger pre-save hooks
+    const savedQuestions = [];
+    
+    for (const questionData of questionsWithModule) {
+      const question = new Question(questionData);
+      await question.save(); // This will trigger the pre-save hook for tag generation
+      savedQuestions.push(question);
+    }
 
     res.status(200).json({
       message: 'Questions saved successfully',
@@ -520,6 +718,13 @@ router.post('/parse', upload.single('file'), async (req, res) => {
     if (!req.file) {
       return res.status(400).json({ message: 'No file uploaded' });
     }
+    
+    // Get module from form data
+    const { module } = req.body;
+    
+    if (!module) {
+      return res.status(400).json({ message: 'Module selection is required' });
+    }
 
     // Convert Word document to text
     const result = await mammoth.extractRawText({ buffer: req.file.buffer });
@@ -573,13 +778,17 @@ router.post('/parse', upload.single('file'), async (req, res) => {
           source: '',
           topic: '',
           type: '',
+          year: '',     // Add year
+          school: '',   // Add school
+          textbook: '', // Add textbook
           options: [],
           correctAnswer: '',
           preview: {
             formattedContent: '',
             formattedOptions: []
           },
-          markingScheme: ''
+          markingScheme: '',
+          module: module // Set the module from the form data
         };
         // Reset content collection for new question
         collectingContent = true;
@@ -611,7 +820,9 @@ router.post('/parse', upload.single('file'), async (req, res) => {
       }
 
       // Handle metadata fields
-      if (line.startsWith('Source:') || line.startsWith('Topic:') || line.startsWith('Type:') || line.startsWith('Correct Answer:')) {
+      if (line.startsWith('Source:') || line.startsWith('Topic:') || line.startsWith('Type:') || 
+          line.startsWith('Correct Answer:') || line.startsWith('Year:') || 
+          line.startsWith('School:') || line.startsWith('Textbook:')) {
         // Save any collected content before metadata
         if (collectingContent) {
           console.log('Saving content before metadata:', contentLines);
@@ -638,6 +849,12 @@ router.post('/parse', upload.single('file'), async (req, res) => {
           currentQuestion.topic = line.replace('Topic:', '').trim();
         } else if (line.startsWith('Type:')) {
           currentQuestion.type = line.replace('Type:', '').trim();
+        } else if (line.startsWith('Year:')) {
+          currentQuestion.year = line.replace('Year:', '').trim();
+        } else if (line.startsWith('School:')) {
+          currentQuestion.school = line.replace('School:', '').trim();
+        } else if (line.startsWith('Textbook:')) {
+          currentQuestion.textbook = line.replace('Textbook:', '').trim();
         } else if (line.startsWith('Correct Answer:')) {
           const answer = line.replace('Correct Answer:', '').trim();
           if (currentQuestion.type === 'MC') {
@@ -815,6 +1032,30 @@ router.post('/export-word', async (req, res) => {
   }
 });
 
+router.get('/filter-options', async (req, res) => {
+  try {
+    // Use aggregation to get unique values for each filter field
+    const sources = await Question.distinct('source');
+    const types = await Question.distinct('type');
+    const topics = await Question.distinct('topic');
+    const years = await Question.distinct('year');
+    const schools = await Question.distinct('school');
+    const textbooks = await Question.distinct('textbook');
+
+    res.json({
+      sources,
+      types,
+      topics,
+      years: years.filter(year => year), // Remove empty values
+      schools: schools.filter(school => school),
+      textbooks: textbooks.filter(textbook => textbook)
+    });
+  } catch (error) {
+    console.error('Error fetching filter options:', error);
+    res.status(500).json({ message: 'Error fetching filter options', error: error.message });
+  }
+});
+
 // ID-based routes last
 router.get('/:id', async (req, res) => {
   try {
@@ -856,6 +1097,39 @@ router.delete('/:id', async (req, res) => {
   } catch (error) {
     console.error('Error deleting question:', error);
     res.status(500).json({ message: 'Error deleting question', error: error.message });
+  }
+});
+
+// Replace the upload-image route with this fixed version
+router.post('/upload-image', imageUpload.single('upload'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ 
+        uploaded: 0,
+        error: {
+          message: 'No image uploaded'
+        }
+      });
+    }
+
+    // Generate URL for the image
+    const baseUrl = req.protocol + '://' + req.get('host');
+    const imageUrl = baseUrl + '/uploads/' + req.file.filename;
+    
+    // Return response in CKEditor format
+    res.status(200).json({
+      uploaded: 1,
+      fileName: req.file.filename,
+      url: imageUrl
+    });
+  } catch (error) {
+    console.error('Error uploading image:', error);
+    res.status(500).json({
+      uploaded: 0,
+      error: {
+        message: error.message
+      }
+    });
   }
 });
 

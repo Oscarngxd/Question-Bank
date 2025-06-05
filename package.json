@@ -9,6 +9,17 @@
     "dev": "concurrently \"npm run start\" \"npm run client\""
   },
   "dependencies": {
+    "@ckeditor/ckeditor5-basic-styles": "^45.1.0",
+    "@ckeditor/ckeditor5-build-decoupled-document": "^41.4.2",
+    "@ckeditor/ckeditor5-cloud-services": "^45.1.0",
+    "@ckeditor/ckeditor5-easy-image": "^45.1.0",
+    "@ckeditor/ckeditor5-editor-classic": "^45.1.0",
+    "@ckeditor/ckeditor5-essentials": "^45.1.0",
+    "@ckeditor/ckeditor5-heading": "^45.1.0",
+    "@ckeditor/ckeditor5-image": "^45.1.0",
+    "@ckeditor/ckeditor5-paragraph": "^45.1.0",
+    "@ckeditor/ckeditor5-ui": "^45.1.0",
+    "@ckeditor/ckeditor5-upload": "^45.1.0",
     "cors": "^2.8.5",
     "docx": "^9.3.0",
     "dotenv": "^16.0.3",

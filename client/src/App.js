@@ -6,6 +6,8 @@ import MainLayout from './components/Layout/MainLayout';
 import QuestionList from './components/QuestionList';
 import QuestionForm from './components/QuestionForm';
 import UploadQuestions from './components/UploadQuestions';
+import ModuleSelectionPage from './components/ModuleSelectionPage';
+import FeedbackForm from './components/FeedbackForm';
 
 // Create a context for theme management
 export const ThemeContext = createContext({
@@ -37,11 +39,15 @@ function App() {
       <Router>
           <MainLayout>
             <Routes>
-              <Route path="/" element={<QuestionList />} />
+              <Route path="/" element={<ModuleSelectionPage />} />
               <Route path="/questions" element={<QuestionList />} />
+              <Route path="/questions/compulsory" element={<QuestionList module="compulsory" />} />
+              <Route path="/questions/module1" element={<QuestionList module="module1" />} />
+              <Route path="/questions/module2" element={<QuestionList module="module2" />} />
               <Route path="/add-question" element={<QuestionForm />} />
               <Route path="/upload" element={<UploadQuestions />} />
-              {/* Add more routes as needed */}
+              {/* Feedback route */}
+              <Route path="/feedback" element={<FeedbackForm />} />
             </Routes>
           </MainLayout>
       </Router>

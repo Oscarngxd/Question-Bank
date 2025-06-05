@@ -1,11 +1,13 @@
-import React, { useContext } from 'react';
-import { Drawer, List, ListItem, ListItemIcon, ListItemText, IconButton, Box, Typography, Divider, useTheme } from '@mui/material';
+import React, { useContext, useState } from 'react';
+import { Drawer, List, ListItem, ListItemIcon, ListItemText, IconButton, Box, Typography, Divider, useTheme, Collapse } from '@mui/material';
 import HomeIcon from '@mui/icons-material/Home';
 import ListAltIcon from '@mui/icons-material/ListAlt';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import GetAppIcon from '@mui/icons-material/GetApp';
 import SettingsIcon from '@mui/icons-material/Settings';
 import MenuIcon from '@mui/icons-material/Menu';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ThemeContext } from '../../App';
@@ -17,7 +19,17 @@ const SIDEBAR_COLLAPSED_WIDTH = 72; // Width when sidebar is collapsed
 
 const menuItems = [
   { label: 'Home', icon: <HomeIcon />, path: '/' },
-  { label: 'Questions', icon: <ListAltIcon />, path: '/questions' },
+  { 
+    label: 'Questions', 
+    icon: <ListAltIcon />, 
+    path: '/questions',
+    subItems: [
+      { label: 'All', path: '/questions' },
+      { label: 'Compulsory Part', path: '/questions/compulsory' },
+      { label: 'Module 1 (Calculus & Statistics)', path: '/questions/module1' },
+      { label: 'Module 2 (Algebra & Calculus)', path: '/questions/module2' },
+    ]
+  },
   { label: 'Upload', icon: <CloudUploadIcon />, path: '/upload' },
   { label: 'Export', icon: <GetAppIcon />, path: '/export' },
   { label: 'Settings', icon: <SettingsIcon />, path: '/settings' },
@@ -28,6 +40,25 @@ export default function Sidebar({ open, onToggle }) {
   const location = useLocation();
   const theme = useTheme();
   const { mode } = useContext(ThemeContext);
+  const [expandedMenu, setExpandedMenu] = useState(null);
+
+  // Check if current path is a subpath of the questions path
+  const isQuestionsActive = location.pathname.startsWith('/questions');
+
+  // If on a questions page, expand the menu by default
+  React.useEffect(() => {
+    if (isQuestionsActive) {
+      setExpandedMenu('Questions');
+    }
+  }, [isQuestionsActive]);
+
+  const handleMenuClick = (item) => {
+    if (item.subItems) {
+      setExpandedMenu(expandedMenu === item.label ? null : item.label);
+    } else {
+      navigate(item.path);
+    }
+  };
 
   const getActiveStyles = (isActive) => ({
     borderRadius: 2,
@@ -116,20 +147,66 @@ export default function Sidebar({ open, onToggle }) {
       {/* Menu */}
       <List>
         {menuItems.map(item => {
-          const isActive = location.pathname === item.path;
+          const isActive = item.subItems 
+            ? location.pathname.startsWith(item.path)
+            : location.pathname === item.path;
+          const isExpanded = expandedMenu === item.label;
+          
           return (
-            <motion.div key={item.label} whileHover={{ scale: 1.04 }} transition={{ type: 'spring', stiffness: 300 }}>
-              <ListItem
-                button
-                onClick={() => navigate(item.path)}
-                sx={getActiveStyles(isActive)}
+            <React.Fragment key={item.label}>
+              <motion.div 
+                whileHover={{ scale: 1.04 }} 
+                transition={{ type: 'spring', stiffness: 300 }}
               >
-                <ListItemIcon sx={{ color: isActive ? 'primary.main' : 'inherit' }}>
-                  {item.icon}
-                </ListItemIcon>
-                {open && <ListItemText primary={item.label} />}
-              </ListItem>
-            </motion.div>
+                <ListItem
+                  button
+                  onClick={() => handleMenuClick(item)}
+                  sx={getActiveStyles(isActive)}
+                >
+                  <ListItemIcon sx={{ color: isActive ? 'primary.main' : 'inherit' }}>
+                    {item.icon}
+                  </ListItemIcon>
+                  {open && (
+                    <>
+                      <ListItemText primary={item.label} />
+                      {item.subItems && (
+                        isExpanded ? <ExpandLessIcon /> : <ExpandMoreIcon />
+                      )}
+                    </>
+                  )}
+                </ListItem>
+              </motion.div>
+              
+              {item.subItems && (
+                <Collapse in={isExpanded && open} timeout="auto" unmountOnExit>
+                  <List component="div" disablePadding>
+                    {item.subItems.map((subItem) => {
+                      const isSubActive = location.pathname === subItem.path;
+                      return (
+                        <ListItem
+                          key={subItem.label}
+                          button
+                          onClick={() => navigate(subItem.path)}
+                          sx={{
+                            ...getActiveStyles(isSubActive),
+                            pl: 4,
+                            py: 0.5,
+                          }}
+                        >
+                          <ListItemText 
+                            primary={subItem.label} 
+                            primaryTypographyProps={{ 
+                              fontSize: '0.9rem',
+                              fontWeight: isSubActive ? 600 : 400 
+                            }} 
+                          />
+                        </ListItem>
+                      );
+                    })}
+                  </List>
+                </Collapse>
+              )}
+            </React.Fragment>
           );
         })}
       </List>

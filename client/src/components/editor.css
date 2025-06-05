@@ -1,0 +1,228 @@
+/* Editor container styles */
+.document-editor {
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  margin-bottom: 20px;
+  background-color: #fff;
+}
+
+.document-editor__toolbar {
+  padding: 8px;
+  border-bottom: 1px solid #ddd;
+  background-color: #f8f9fa;
+}
+
+.document-editor__editable-container {
+  padding: 10px;
+}
+
+/* Enhanced table styles for better column resizing experience */
+.ck-content table,
+table.ck-table {
+  margin: 1em auto;
+  display: table;
+  border-collapse: collapse;
+  table-layout: fixed; /* This ensures columns respect their widths */
+  width: 100%;
+}
+
+.ck-content table td,
+.ck-content table th,
+table.ck-table td,
+table.ck-table th {
+  border: 1px solid #bfbfbf;
+  min-width: 2em;
+  padding: .4em;
+  position: relative; /* For the resize handle */
+  overflow: hidden;
+}
+
+/* Simple table column resize CSS - works with standard tables */
+.ck-content table.resizable,
+table.ck-table.resizable {
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.ck-content table.resizable th,
+.ck-content table.resizable td,
+table.ck-table.resizable th,
+table.ck-table.resizable td {
+  border: 1px solid #bfbfbf;
+  position: relative;
+  overflow: hidden;
+}
+
+.ck-content table.resizable th:after,
+.ck-content table.resizable td:after,
+table.ck-table.resizable th:after,
+table.ck-table.resizable td:after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: -5px;
+  bottom: 0;
+  width: 10px;
+  cursor: col-resize;
+  z-index: 1;
+}
+
+.ck-content table.resizable th:hover:after,
+.ck-content table.resizable td:hover:after,
+table.ck-table.resizable th:hover:after,
+table.ck-table.resizable td:hover:after {
+  background-color: rgba(24, 144, 255, 0.2);
+}
+
+/* Ensure tables in preview look good */
+.ck-content .resizable,
+table.resizable {
+  width: 100%;
+  margin: 1em 0;
+  border: 1px solid #bfbfbf;
+}
+
+/* Add styling to make tables in preview more visible */
+.ck-content .ck-table td,
+.ck-content .ck-table th,
+table.ck-table td,
+table.ck-table th {
+  padding: 0.4em;
+  border: 1px solid #bfbfbf;
+  background-color: #fff;
+}
+
+/* Make table headers stand out */
+.ck-content .ck-table th,
+table.ck-table th {
+  background-color: #f8f8f8;
+  font-weight: bold;
+}
+
+/* Table column resize styles */
+.ck-content .table .ck-table-resized {
+  table-layout: fixed;
+}
+
+.ck-content .table table {
+  overflow: hidden;
+  border-collapse: collapse;
+}
+
+/* Make table resize handlers more visible */
+.ck.ck-column-resize-handler {
+  width: 7px !important;
+  background: rgba(24, 144, 255, 0.25) !important;
+}
+
+.ck.ck-column-resize-handler:hover, 
+.ck.ck-column-resize-handler__active {
+  background: rgba(24, 144, 255, 0.6) !important;
+}
+
+/* Make sure images can be resized */
+.ck-content .image {
+  position: relative;
+  margin: 1em 0;
+  clear: both;
+}
+
+.ck-content .image img {
+  display: block;
+  margin: 0 auto;
+  max-width: 100%;
+  min-width: 50px;
+}
+
+/* Style for image resize handlers */
+.ck-content .image.image_resized {
+  max-width: 100%;
+  display: block;
+  box-sizing: border-box;
+}
+
+.ck-content .image.image_resized img {
+  width: 100%;
+}
+
+.ck-content .image.image_resized > figcaption {
+  display: block;
+}
+
+/* CKEditor built-in image alignment styles - using official CKEditor class names */
+
+/* Left alignment - float image with text wrapping */
+figure.image.image-style-align-left,
+figure.image.image-style-side,
+.image-style-align-left,
+.image-style-side {
+  float: left !important;
+  margin-right: 20px !important;
+  margin-bottom: 20px !important;
+  margin-top: 5px !important;
+  max-width: 50% !important;
+  clear: left !important;
+}
+
+/* Right alignment - float image with text wrapping */
+figure.image.image-style-align-right,
+.image-style-align-right {
+  float: right !important;
+  margin-left: 20px !important;
+  margin-bottom: 20px !important;
+  margin-top: 5px !important;
+  max-width: 50% !important;
+  clear: right !important;
+}
+
+/* Center alignment - block image centered */
+figure.image.image-style-align-center,
+figure.image.image-style-block,
+.image-style-align-center,
+.image-style-block {
+  display: block !important;
+  float: none !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+  max-width: 100% !important;
+  text-align: center !important;
+  clear: both !important;
+}
+
+/* Special alignment classes used by CKEditor - as fallbacks */
+.ck-content .align-left {
+  float: left !important;
+  margin-right: 20px !important;
+}
+
+.ck-content .align-right {
+  float: right !important;
+  margin-left: 20px !important;
+}
+
+.ck-content .align-center {
+  margin-left: auto !important;
+  margin-right: auto !important;
+  text-align: center !important;
+  display: block !important;
+  float: none !important;
+}
+
+/* Media queries for responsive images */
+@media screen and (max-width: 620px) {
+  .ck-content .image.image_resized {
+    width: 100% !important;
+  }
+}
+
+/* Make resize handlers more visible */
+.ck .ck-widget.ck-widget_with-resize-handler .ck-widget__resizer__handle {
+  background: rgba(0, 102, 204, 0.6) !important;
+  width: 12px !important;
+  height: 12px !important;
+}
+
+/* Make the CKEditor main container take full width */
+.ck.ck-editor__main > .ck-editor__editable {
+  max-height: 500px;
+} 

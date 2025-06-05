@@ -18,24 +18,24 @@ export default function Topbar() {
         <Typography variant="h6" sx={{ flexGrow: 1, fontWeight: 700 }}>
           Question Bank
         </Typography>
-        <Box sx={{ display: 'flex', alignItems: 'center', bgcolor: 'background.paper', borderRadius: 2, px: 2, mr: 2 }}>
+        {/* <Box sx={{ display: 'flex', alignItems: 'center', bgcolor: 'background.paper', borderRadius: 2, px: 2, mr: 2 }}>
           <SearchIcon color="action" />
           <InputBase placeholder="Search questions..." sx={{ ml: 1, flex: 1 }} />
-        </Box>
-        <Button 
+        </Box> */}
+        {/* <Button 
           variant="contained" 
           startIcon={<AddIcon />} 
           sx={{ mr: 1 }}
           onClick={() => navigate('/add-question')}
         >
           Add Question
-        </Button>
+        </Button> */}
         <Tooltip title={mode === 'light' ? 'Switch to Dark Mode' : 'Switch to Light Mode'}>
           <IconButton onClick={toggleTheme} color="inherit" sx={{ mr: 1 }}>
             {mode === 'light' ? <Brightness4Icon /> : <Brightness7Icon />}
           </IconButton>
         </Tooltip>
-        <IconButton color="primary"><DownloadIcon /></IconButton>
+        {/* <IconButton color="primary"><DownloadIcon /></IconButton> */}
         <Avatar sx={{ ml: 2 }}>U</Avatar>
       </Toolbar>
     </AppBar>
